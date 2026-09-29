@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Relay — AI Follow-Up Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0d12; --surface:#11151d; --surface-2:#171d27; --surface-3:#1e2530;
+    --border:#232a36; --border-soft:#1a202b; --text:#e9ebee; --text-dim:#9aa3b2; --text-faint:#5b6470;
+    --accent:#5b5fef; --accent-soft:rgba(91,95,239,0.14); --accent-2:#22d3aa; --accent-2-soft:rgba(34,211,170,0.14);
+    --warn:#f5a623; --warn-soft:rgba(245,166,35,0.14); --danger:#ef5a6f; --danger-soft:rgba(239,90,111,0.14);
+    --radius:14px; --radius-sm:9px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{ background: radial-gradient(1200px 800px at 85% -10%, rgba(91,95,239,0.08), transparent 60%), var(--bg); color:var(--text); font-family:'Inter',sans-serif; font-size:14px; min-height:100vh; display:flex; }
+  h1,h2,h3,.display{ font-family:'Space Grotesk',sans-serif; letter-spacing:-0.01em; }
+  .mono{ font-family:'JetBrains Mono',monospace; }
+  a{ color:inherit; text-decoration:none; }
+  button{ font-family:inherit; cursor:pointer; border:none; }
+
+  /* ---- Login screen ---- */
+  #login-screen{ position:fixed; inset:0; background:var(--bg); display:flex; align-items:center; justify-content:center; z-index:100; }
+  .login-card{ background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:36px; width:360px; }
+  .login-brand{ display:flex; align-items:center; gap:10px; margin-bottom:22px; }
+  .login-title{ font-size:18px; font-weight:600; margin-bottom:6px; }
+  .login-sub{ color:var(--text-dim); font-size:12.5px; margin-bottom:22px; line-height:1.5; }
+  .field{ margin-bottom:14px; }
+  .field label{ display:block; font-size:11.5px; color:var(--text-faint); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.04em; }
+  .field input{ width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; color:var(--text); font-size:13.5px; font-family:inherit; }
+  .field input:focus{ outline:none; border-color:var(--accent); }
+  .login-error{ background:var(--danger-soft); color:var(--danger); font-size:12.5px; padding:9px 12px; border-radius:8px; margin-bottom:14px; display:none; }
+  .base-url-note{ font-size:11px; color:var(--text-faint); margin-top:16px; text-align:center; }
+
+  .sidebar{ width:232px; min-width:232px; background:var(--surface); border-right:1px solid var(--border-soft); display:flex; flex-direction:column; padding:22px 14px; height:100vh; position:sticky; top:0; }
+  .brand{ display:flex; align-items:center; gap:10px; padding:4px 8px 26px 8px; }
+  .brand-mark{ width:30px; height:30px; border-radius:9px; background:linear-gradient(135deg,var(--accent),#8b8ef7); display:flex; align-items:center; justify-content:center; font-family:'Space Grotesk'; font-weight:700; font-size:15px; color:white; flex-shrink:0; }
+  .brand-name{ font-family:'Space Grotesk'; font-weight:600; font-size:16.5px; }
+  .brand-sub{ font-size:11px; color:var(--text-faint); margin-top:1px;}
+  .nav-group{ margin-bottom:18px; }
+  .nav-item{ display:flex; align-items:center; gap:11px; padding:9px 11px; border-radius:9px; color:var(--text-dim); font-size:13.5px; font-weight:500; cursor:pointer; transition:background .15s,color .15s; margin-bottom:2px; }
+  .nav-item svg{ width:17px; height:17px; flex-shrink:0; opacity:0.85;}
+  .nav-item:hover{ background:var(--surface-2); color:var(--text); }
+  .nav-item.active{ background:var(--accent-soft); color:#c7c9ff; }
+  .nav-item.active svg{ opacity:1; }
+  .nav-badge{ margin-left:auto; background:var(--surface-3); color:var(--text-dim); font-size:10.5px; padding:1px 7px; border-radius:20px; font-family:'JetBrains Mono'; }
+  .sidebar-footer{ margin-top:auto; border-top:1px solid var(--border-soft); padding-top:14px; display:flex; align-items:center; gap:10px; padding-left:8px; cursor:pointer; }
+  .avatar{ width:32px; height:32px; border-radius:50%; background:linear-gradient(135deg,#3c4257,#232838); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:600; color:var(--text-dim); border:1px solid var(--border); }
+  .user-name{ font-size:13px; font-weight:600; }
+  .user-plan{ font-size:11px; color:var(--text-faint); }
+
+  .main{ flex:1; min-width:0; padding:26px 34px 50px; }
+  .topline{ display:flex; align-items:center; justify-content:space-between; margin-bottom:26px; }
+  .page-title{ font-size:22px; font-weight:600; }
+  .page-sub{ color:var(--text-dim); font-size:13px; margin-top:3px; }
+  .top-actions{ display:flex; gap:10px; align-items:center; }
+  .btn{ padding:9px 15px; border-radius:9px; font-size:13px; font-weight:600; display:inline-flex; align-items:center; gap:7px; transition:.15s; }
+  .btn-primary{ background:var(--accent); color:white; }
+  .btn-primary:hover{ background:#6c6ffb; }
+  .btn-primary:disabled{ opacity:0.5; cursor:not-allowed; }
+  .btn-ghost{ background:var(--surface-2); color:var(--text); border:1px solid var(--border); }
+  .btn-ghost:hover{ background:var(--surface-3); }
+  .btn-sm{ padding:6px 11px; font-size:12px; border-radius:7px; }
+
+  .stat-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:18px; }
+  .card{ background:var(--surface); border:1px solid var(--border-soft); border-radius:var(--radius); padding:18px; }
+  .stat-value{ font-family:'Space Grotesk'; font-size:26px; font-weight:600; }
+  .stat-label{ color:var(--text-dim); font-size:12.5px; margin-top:3px; }
+
+  .hero-card{ background:linear-gradient(120deg,#171a2c 0%,#12141d 60%,#11151d 100%); border:1px solid var(--border); border-radius:var(--radius); padding:26px 28px; margin-bottom:18px; position:relative; overflow:hidden; display:flex; justify-content:space-between; align-items:center; gap:20px; }
+  .hero-card::after{ content:''; position:absolute; right:-60px; top:-80px; width:280px; height:280px; background:radial-gradient(circle, rgba(91,95,239,0.22), transparent 70%); }
+  .hero-left{ position:relative; z-index:1; max-width:560px;}
+  .hero-tag{ display:inline-flex; align-items:center; gap:6px; background:var(--accent-soft); color:#b7b9ff; font-size:11.5px; font-weight:600; padding:4px 10px; border-radius:20px; margin-bottom:12px;}
+  .hero-title{ font-size:21px; font-weight:600; margin-bottom:8px; }
+  .hero-desc{ color:var(--text-dim); font-size:13.5px; line-height:1.55; }
+  .hero-right{ position:relative; z-index:1; text-align:right; flex-shrink:0; }
+  .hero-stat{ font-family:'Space Grotesk'; font-size:30px; font-weight:700; }
+  .hero-stat-label{ font-size:11.5px; color:var(--text-faint); margin-bottom:14px; }
+
+  .split-row{ display:grid; grid-template-columns:1.6fr 1fr; gap:16px; }
+  .panel-title{ font-size:14.5px; font-weight:600; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; }
+  .panel-title span.link{ font-size:12px; color:var(--text-dim); font-weight:500; cursor:pointer; }
+
+  .mail-row{ display:flex; align-items:center; gap:12px; padding:11px 6px; border-bottom:1px solid var(--border-soft); cursor:pointer; border-radius:8px; }
+  .mail-row:hover{ background:var(--surface-2); }
+  .mail-row:last-child{ border-bottom:none; }
+  .mail-avatar{ width:32px; height:32px; border-radius:50%; background:var(--surface-3); display:flex; align-items:center; justify-content:center; font-size:11.5px; font-weight:600; color:var(--text-dim); flex-shrink:0; }
+  .mail-main{ flex:1; min-width:0; }
+  .mail-sender{ font-weight:600; font-size:13px; }
+  .mail-subject{ color:var(--text-dim); font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tag{ font-size:10.5px; font-weight:600; padding:3px 8px; border-radius:20px; white-space:nowrap; }
+  .tag-default{ background:var(--surface-3); color:var(--text-dim); }
+  .tag-accent{ background:var(--accent-soft); color:#b7b9ff; }
+  .tag-done{ background:var(--accent-2-soft); color:var(--accent-2); }
+  .tag-pending{ background:var(--surface-3); color:var(--text-dim); }
+  .tag-failed{ background:var(--danger-soft); color:var(--danger); }
+
+  .empty-note{ color:var(--text-faint); font-size:13px; padding:20px 6px; text-align:center; }
+
+  .toolbar{ display:flex; gap:10px; margin-bottom:16px; align-items:center; flex-wrap:wrap;}
+  .search-box{ background:var(--surface); border:1px solid var(--border); border-radius:9px; padding:8px 12px; display:flex; align-items:center; gap:8px; color:var(--text-faint); font-size:13px; width:260px; }
+  .search-box input{ background:none; border:none; color:var(--text); font-size:13px; font-family:inherit; outline:none; width:100%; }
+  table{ width:100%; border-collapse:collapse; }
+  thead th{ text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-faint); font-weight:600; padding:0 10px 10px; border-bottom:1px solid var(--border-soft); }
+  tbody td{ padding:13px 10px; border-bottom:1px solid var(--border-soft); font-size:13px; }
+  tbody tr{ cursor:pointer; transition:background .12s; }
+  tbody tr:hover{ background:var(--surface-2); }
+  .priority-dot{ width:7px; height:7px; border-radius:50%; display:inline-block; margin-right:6px;}
+  .p-high{ background:var(--danger);} .p-medium{ background:var(--warn);} .p-low{ background:var(--accent-2);}
+
+  .detail-grid{ display:grid; grid-template-columns:1fr 1.35fr; gap:18px; align-items:start; }
+  .thread-card{ padding:22px; }
+  .thread-from{ font-size:15px; font-weight:600; margin-bottom:2px; }
+  .thread-meta{ font-size:12px; color:var(--text-faint); margin-bottom:16px; }
+  .thread-subject{ font-family:'Space Grotesk'; font-size:16px; font-weight:600; margin-bottom:14px; }
+  .thread-body{ color:var(--text-dim); font-size:13.5px; line-height:1.7; white-space:pre-line; }
+
+  .analysis-card{ padding:18px 20px; margin-bottom:16px; }
+  .analysis-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px 20px; margin-bottom:14px; }
+  .a-label{ font-size:11px; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px;}
+  .a-value{ font-size:13px; font-weight:600; }
+  .summary-box{ background:var(--surface-2); border-radius:9px; padding:12px 14px; font-size:12.5px; color:var(--text-dim); line-height:1.55; border:1px solid var(--border-soft); }
+
+  .replies-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;}
+  .reply-card{ background:var(--surface); border:1px solid var(--border-soft); border-radius:12px; padding:15px 16px; margin-bottom:11px; transition:border-color .15s; }
+  .reply-card:hover{ border-color:#333c4c; }
+  .reply-card.sent{ border-color:var(--accent-2); background:rgba(34,211,170,0.05); }
+  .reply-card.needs-review{ border-color:var(--warn); }
+  .reply-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .reply-style{ font-size:12px; font-weight:600; color:#c7c9ff; display:flex; align-items:center; gap:7px; }
+  .reply-num{ width:19px; height:19px; border-radius:6px; background:var(--surface-3); display:flex; align-items:center; justify-content:center; font-size:10.5px; font-family:'JetBrains Mono'; color:var(--text-dim); }
+  .reply-text{ font-size:13px; color:var(--text-dim); line-height:1.6; margin-bottom:10px; white-space:pre-wrap; }
+  .reply-actions{ display:flex; gap:6px; }
+  .icon-btn{ background:var(--surface-2); border:1px solid var(--border); color:var(--text-dim); width:28px; height:28px; border-radius:7px; display:flex; align-items:center; justify-content:center; }
+  .icon-btn:hover{ background:var(--surface-3); color:var(--text); }
+  .icon-btn svg{ width:13px; height:13px; }
+  .warn-flag{ font-size:11px; color:var(--warn); margin-bottom:8px; }
+
+  .assist-bar{ display:flex; gap:8px; margin-top:16px; flex-wrap:wrap; }
+  .assist-chip{ background:var(--surface-2); border:1px solid var(--border); color:var(--text-dim); font-size:12px; padding:7px 11px; border-radius:20px; cursor:pointer; }
+  .assist-chip:hover{ background:var(--surface-3); color:var(--text); }
+
+  .progress-track{ background:var(--surface-2); height:10px; border-radius:20px; overflow:hidden; margin:14px 0 8px;}
+  .progress-fill{ height:100%; background:linear-gradient(90deg,var(--accent),var(--accent-2)); width:0%; transition:width .3s ease; border-radius:20px; }
+  .progress-nums{ display:flex; justify-content:space-between; font-size:12.5px; color:var(--text-dim); }
+  .mini-stats{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:18px;}
+  .mini-stat{ background:var(--surface-2); border-radius:9px; padding:12px 14px; }
+  .mini-stat .v{ font-family:'Space Grotesk'; font-size:19px; font-weight:600; }
+  .mini-stat .l{ font-size:11.5px; color:var(--text-faint); margin-top:2px;}
+  .fail-row{ display:flex; justify-content:space-between; align-items:center; padding:9px 12px; background:var(--danger-soft); border-radius:8px; margin-bottom:7px; font-size:12.5px; }
+
+  .chart-card{ padding:20px; }
+  .bars{ display:flex; align-items:flex-end; gap:8px; height:150px; margin-top:16px; position:relative; }
+  .bar{ flex:1; background:linear-gradient(180deg,var(--accent),rgba(91,95,239,0.25)); border-radius:5px 5px 0 0; position:relative; min-height:2px; }
+  .bar-label{ position:absolute; bottom:-20px; left:0; right:0; text-align:center; font-size:10.5px; color:var(--text-faint); }
+
+  .view{ display:none; animation:fadein .25s ease; }
+  .view.active{ display:block; }
+  @keyframes fadein{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;} }
+  .spinner{ width:16px; height:16px; border:2px solid rgba(255,255,255,0.25); border-top-color:white; border-radius:50%; animation:spin .7s linear infinite; display:inline-block; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  .toast{ position:fixed; bottom:22px; right:22px; background:var(--surface-3); border:1px solid var(--border); padding:12px 16px; border-radius:10px; font-size:13px; z-index:200; display:none; }
+  ::-webkit-scrollbar{ width:8px; height:8px; }
+  ::-webkit-scrollbar-thumb{ background:var(--surface-3); border-radius:20px; }
+</style>
+</head>
+<body>
+
+<!-- ================= LOGIN ================= -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-brand">
+      <div class="brand-mark">R</div>
+      <div><div class="brand-name">Relay</div><div class="brand-sub">AI email assistant</div></div>
+    </div>
+    <div class="login-title">Sign in</div>
+    <div class="login-sub">Connects to your local backend. Run <span class="mono">python seed.py</span> first if you haven't, to create the demo account.</div>
+    <div class="login-error" id="login-error"></div>
+    <div class="field"><label>API base URL</label><input id="api-base" value="http://127.0.0.1:8000"></div>
+    <div class="field"><label>Email</label><input id="login-email" value="demo@relay.ai"></div>
+    <div class="field"><label>Password</label><input id="login-password" type="password" value="demo1234"></div>
+    <button class="btn btn-primary" style="width:100%; justify-content:center;" onclick="doLogin()" id="login-btn">Sign in</button>
+    <div class="base-url-note">If this hangs or errors, set <span class="mono">ALLOWED_ORIGINS=*</span> in your backend's .env and restart uvicorn.</div>
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div class="sidebar" style="display:none;" id="app-sidebar">
+  <div class="brand">
+    <div class="brand-mark">R</div>
+    <div><div class="brand-name">Relay</div><div class="brand-sub">AI email assistant</div></div>
+  </div>
+  <div class="nav-group">
+    <div class="nav-item active" data-view="dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+      Dashboard
+    </div>
+    <div class="nav-item" data-view="inbox">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v16H4z"/><path d="M4 8l8 6 8-6"/></svg>
+      Inbox <span class="nav-badge" id="nav-inbox-count">0</span>
+    </div>
+    <div class="nav-item" data-view="bulk">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 17V7a2 2 0 012-2h9l5 5v7a2 2 0 01-2 2H6a2 2 0 01-2-2z"/><path d="M9 13h6"/></svg>
+      Bulk Processing
+    </div>
+    <div class="nav-item" data-view="analytics">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>
+      Analytics
+    </div>
+  </div>
+  <div class="sidebar-footer" onclick="logout()">
+    <div class="avatar" id="user-initials">--</div>
+    <div><div class="user-name" id="user-email-label">—</div><div class="user-plan">Sign out</div></div>
+  </div>
+</div>
+
+<div class="main" style="display:none;" id="app-main">
+
+  <!-- DASHBOARD -->
+  <div class="view active" id="view-dashboard">
+    <div class="topline">
+      <div><div class="page-title">Good day 👋</div><div class="page-sub" id="dash-sub">Loading your inbox…</div></div>
+      <div class="top-actions">
+        <button class="btn btn-ghost" onclick="refreshAll()">↻ Refresh</button>
+        <button class="btn btn-primary" onclick="goTo('bulk')">Start Processing</button>
+      </div>
+    </div>
+    <div class="stat-grid">
+      <div class="card"><div class="stat-value" id="stat-total">–</div><div class="stat-label">Total emails</div></div>
+      <div class="card"><div class="stat-value" id="stat-completed">–</div><div class="stat-label">Processed</div></div>
+      <div class="card"><div class="stat-value" id="stat-replies">–</div><div class="stat-label">Replies generated</div></div>
+      <div class="card"><div class="stat-value" id="stat-pending">–</div><div class="stat-label">Pending</div></div>
+    </div>
+    <div class="hero-card">
+      <div class="hero-left">
+        <div class="hero-tag">⚡ Bulk AI processing</div>
+        <div class="hero-title">Process your inbox with AI</div>
+        <div class="hero-desc">Relay reads intent, tone and urgency for every message, then drafts 10 distinct reply options per email using Claude.</div>
+      </div>
+      <div class="hero-right">
+        <div class="hero-stat">10</div>
+        <div class="hero-stat-label">replies / email</div>
+        <button class="btn btn-primary" onclick="goTo('bulk')">Start Processing →</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="panel-title">Recent emails <span class="link" onclick="goTo('inbox')">View inbox →</span></div>
+      <div id="recent-list"><div class="empty-note">Loading…</div></div>
+    </div>
+  </div>
+
+  <!-- INBOX -->
+  <div class="view" id="view-inbox">
+    <div class="topline">
+      <div><div class="page-title">Inbox</div><div class="page-sub" id="inbox-sub">—</div></div>
+      <div class="top-actions"><button class="btn btn-primary" onclick="goTo('bulk')">Process pending</button></div>
+    </div>
+    <div class="toolbar">
+      <div class="search-box"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input id="inbox-search" placeholder="Search by sender or subject…" oninput="loadInbox()"></div>
+    </div>
+    <div class="card" style="padding:8px 14px 4px;">
+      <table>
+        <thead><tr><th>Sender</th><th>Subject</th><th>Intent</th><th>Priority</th><th>Status</th><th>Replies</th></tr></thead>
+        <tbody id="inbox-body"><tr><td colspan="6" class="empty-note">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- DETAIL -->
+  <div class="view" id="view-detail">
+    <div class="topline">
+      <div><div class="page-title">Email detail</div><div class="page-sub">Review the AI's understanding and pick a reply.</div></div>
+      <div class="top-actions"><button class="btn btn-ghost" onclick="goTo('inbox')">← Back to inbox</button></div>
+    </div>
+    <div class="detail-grid">
+      <div class="card thread-card" id="thread-box">
+        <div class="empty-note">Loading…</div>
+      </div>
+      <div>
+        <div class="card analysis-card" id="analysis-box">
+          <div class="empty-note">Analyzing with Claude…</div>
+        </div>
+        <div class="replies-header">
+          <div class="panel-title" style="margin-bottom:0;">Suggested replies</div>
+          <button class="btn btn-ghost btn-sm" onclick="generateReplies(currentEmailId, true)">↻ Regenerate all</button>
+        </div>
+        <div id="replies-list"><div class="empty-note">Waiting on analysis…</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BULK -->
+  <div class="view" id="view-bulk">
+    <div class="topline"><div><div class="page-title">Bulk processing</div><div class="page-sub">Runs asynchronously on the backend — this page just polls for progress.</div></div></div>
+    <div class="card" style="padding:24px;">
+      <div class="panel-title" style="margin-bottom:2px;">Processing emails <span class="link mono" id="bulk-pct">0%</span></div>
+      <div class="progress-track"><div class="progress-fill" id="bulk-fill"></div></div>
+      <div class="progress-nums"><span id="bulk-count">0 / 0</span><span id="bulk-status-label">Idle</span></div>
+      <div class="mini-stats">
+        <div class="mini-stat"><div class="v" id="m-success">0</div><div class="l">Successful</div></div>
+        <div class="mini-stat"><div class="v" id="m-failed">0</div><div class="l">Failed</div></div>
+        <div class="mini-stat"><div class="v" id="m-remaining">0</div><div class="l">Remaining</div></div>
+        <div class="mini-stat"><div class="v" id="m-total">0</div><div class="l">Total in job</div></div>
+      </div>
+      <div style="margin-top:20px; display:flex; gap:10px;">
+        <button class="btn btn-primary" onclick="startBulk()" id="bulk-btn">Process all pending emails</button>
+        <button class="btn btn-ghost" onclick="retryBulkFailed()" id="retry-btn" style="display:none;">Retry failed</button>
+      </div>
+      <div id="fail-container" style="margin-top:18px;"></div>
+    </div>
+  </div>
+
+  <!-- ANALYTICS -->
+  <div class="view" id="view-analytics">
+    <div class="topline"><div><div class="page-title">Analytics</div><div class="page-sub">Live stats from your backend.</div></div></div>
+    <div class="stat-grid">
+      <div class="card"><div class="stat-value" id="an-success">–</div><div class="stat-label">Processing success rate</div></div>
+      <div class="card"><div class="stat-value" id="an-time">–</div><div class="stat-label">Avg. processing time / email</div></div>
+      <div class="card"><div class="stat-value" id="an-intent">–</div><div class="stat-label">Most common intent</div></div>
+      <div class="card"><div class="stat-value" id="an-style">–</div><div class="stat-label">Most used reply style</div></div>
+    </div>
+    <div class="card chart-card">
+      <div class="panel-title">Emails processed per day</div>
+      <div class="bars" id="bars"><div class="empty-note">Loading…</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  let API_BASE = "http://127.0.0.1:8000";
+  let TOKEN = null;
+  let currentEmailId = null;
+  let bulkPollTimer = null;
+  let currentJobId = null;
+  let emailsCache = [];
+
+  function toast(msg, isError=false){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.style.borderColor = isError ? 'var(--danger)' : 'var(--border)';
+    t.style.display = 'block';
+    clearTimeout(t._timer);
+    t._timer = setTimeout(()=> t.style.display='none', 3500);
+  }
+
+  async function api(path, options={}){
+    const res = await fetch(API_BASE + path, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(TOKEN ? {'Authorization': 'Bearer ' + TOKEN} : {}),
+        ...(options.headers || {})
+      }
+    });
+    if(!res.ok){
+      let detail = res.statusText;
+      try{ const j = await res.json(); detail = j.detail || detail; }catch(e){}
+      throw new Error(`${res.status}: ${detail}`);
+    }
+    if(res.status === 204) return null;
+    return res.json();
+  }
+
+  // ---------- Auth ----------
+  async function doLogin(){
+    API_BASE = document.getElementById('api-base').value.trim().replace(/\/$/,'');
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    const btn = document.getElementById('login-btn');
+    const errBox = document.getElementById('login-error');
+    errBox.style.display = 'none';
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Signing in…';
+    try{
+      const data = await api('/auth/login', {method:'POST', body: JSON.stringify({email, password})});
+      TOKEN = data.access_token;
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('app-sidebar').style.display = 'flex';
+      document.getElementById('app-main').style.display = 'block';
+      document.getElementById('user-initials').textContent = email.slice(0,2).toUpperCase();
+      document.getElementById('user-email-label').textContent = email;
+      refreshAll();
+    }catch(e){
+      errBox.textContent = "Couldn't sign in: " + e.message + ". Is uvicorn running, and did you run seed.py?";
+      errBox.style.display = 'block';
+    }finally{
+      btn.disabled = false; btn.textContent = 'Sign in';
+    }
+  }
+  function logout(){
+    TOKEN = null;
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('app-sidebar').style.display = 'none';
+    document.getElementById('app-main').style.display = 'none';
+  }
+
+  // ---------- Navigation ----------
+  function goTo(view){
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-'+view).classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    const navEl = document.querySelector(`.nav-item[data-view="${view}"]`);
+    if(navEl) navEl.classList.add('active');
+    if(view === 'inbox') loadInbox();
+    if(view === 'analytics') loadAnalytics();
+    if(view === 'bulk') resetBulkUI();
+  }
+  document.querySelectorAll('.nav-item').forEach(item => item.addEventListener('click', () => goTo(item.dataset.view)));
+
+  function priorityDot(p){ return `<span class="priority-dot p-${p||'low'}"></span>`; }
+  function statusTag(s){
+    if(s === 'completed') return `<span class="tag tag-done">Completed</span>`;
+    if(s === 'failed') return `<span class="tag tag-failed">Failed</span>`;
+    return `<span class="tag tag-pending">${s.replace('_',' ')}</span>`;
+  }
+
+  // ---------- Dashboard ----------
+  async function refreshAll(){
+    try{
+      emailsCache = await api('/emails?page=1&page_size=100');
+      const total = emailsCache.length;
+      const completed = emailsCache.filter(e => e.status === 'completed').length;
+      const pending = emailsCache.filter(e => !['completed'].includes(e.status)).length;
+      const totalReplies = emailsCache.reduce((s,e)=> s + (e.reply_count||0), 0);
+
+      document.getElementById('stat-total').textContent = total;
+      document.getElementById('stat-completed').textContent = completed;
+      document.getElementById('stat-replies').textContent = totalReplies;
+      document.getElementById('stat-pending').textContent = pending;
+      document.getElementById('nav-inbox-count').textContent = total;
+      document.getElementById('dash-sub').textContent = `${total} emails synced · ${completed} processed · ${pending} pending`;
+
+      const recent = document.getElementById('recent-list');
+      recent.innerHTML = total ? emailsCache.slice(0,6).map(e => `
+        <div class="mail-row" onclick="openEmail('${e.id}')">
+          <div class="mail-avatar">${(e.sender||'?').slice(0,2).toUpperCase()}</div>
+          <div class="mail-main"><div class="mail-sender">${escapeHtml(e.sender)}</div><div class="mail-subject">${escapeHtml(e.subject)}</div></div>
+          <span class="tag tag-accent">${e.intent || 'Not analyzed'}</span>
+          ${statusTag(e.status)}
+        </div>`).join('') : `<div class="empty-note">No emails yet — run <span class="mono">python seed.py</span> in your backend folder, then Refresh.</div>`;
+    }catch(e){
+      toast('Could not load emails: ' + e.message, true);
+    }
+  }
+
+  function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  // ---------- Inbox ----------
+  async function loadInbox(){
+    const search = document.getElementById('inbox-search').value.trim();
+    try{
+      const path = '/emails?page=1&page_size=100' + (search ? '&search=' + encodeURIComponent(search) : '');
+      const emails = await api(path);
+      emailsCache = emails;
+      document.getElementById('inbox-sub').textContent = `${emails.length} emails`;
+      document.getElementById('inbox-body').innerHTML = emails.length ? emails.map(e => `
+        <tr onclick="openEmail('${e.id}')">
+          <td style="font-weight:600;">${escapeHtml(e.sender)}</td>
+          <td style="color:var(--text-dim);">${escapeHtml(e.subject)}</td>
+          <td><span class="tag tag-accent">${e.intent || '—'}</span></td>
+          <td>${e.priority ? priorityDot(e.priority) + e.priority[0].toUpperCase()+e.priority.slice(1) : '—'}</td>
+          <td>${statusTag(e.status)}</td>
+          <td class="mono" style="color:var(--text-faint)">${e.reply_count || '—'}</td>
+        </tr>`).join('') : `<tr><td colspan="6" class="empty-note">No emails found.</td></tr>`;
+    }catch(e){
+      toast('Could not load inbox: ' + e.message, true);
+    }
+  }
+
+  // ---------- Detail ----------
+  async function openEmail(id){
+    currentEmailId = id;
+    goTo('detail');
+    document.getElementById('thread-box').innerHTML = '<div class="empty-note">Loading…</div>';
+    document.getElementById('analysis-box').innerHTML = '<div class="empty-note"><span class="spinner"></span> Analyzing with Claude…</div>';
+    document.getElementById('replies-list').innerHTML = '<div class="empty-note">Waiting on analysis…</div>';
+    try{
+      const email = await api(`/emails/${id}`);
+      document.getElementById('thread-box').innerHTML = `
+        <div class="thread-from">${escapeHtml(email.sender)}</div>
+        <div class="thread-meta">${new Date(email.received_at).toLocaleString()}</div>
+        <div class="thread-subject">${escapeHtml(email.subject)}</div>
+        <div class="thread-body">${escapeHtml(email.body)}</div>`;
+      await generateReplies(id, false);
+    }catch(e){
+      document.getElementById('thread-box').innerHTML = `<div class="empty-note">Failed to load: ${escapeHtml(e.message)}</div>`;
+    }
+  }
+
+  async function generateReplies(id, force){
+    document.getElementById('analysis-box').innerHTML = '<div class="empty-note"><span class="spinner"></span> Calling Claude — analyzing intent, tone, and drafting 10 replies…</div>';
+    document.getElementById('replies-list').innerHTML = '';
+    try{
+      const result = await api(`/emails/${id}/generate-replies`, {method:'POST'});
+      const a = result.analysis;
+      document.getElementById('analysis-box').innerHTML = `
+        <div class="panel-title" style="margin-bottom:12px;">AI analysis</div>
+        <div class="analysis-grid">
+          <div><div class="a-label">Intent</div><div class="a-value">${escapeHtml(a.intent)}</div></div>
+          <div><div class="a-label">Priority</div><div class="a-value">${priorityDot(a.priority)}${a.priority}</div></div>
+          <div><div class="a-label">Tone</div><div class="a-value">${escapeHtml(a.tone)}</div></div>
+          <div><div class="a-label">Required action</div><div class="a-value">${escapeHtml(a.required_action)}</div></div>
+        </div>
+        <div class="summary-box"><strong style="color:var(--text)">Summary —</strong> ${escapeHtml(a.summary)}</div>`;
+
+      document.getElementById('replies-list').innerHTML = result.replies.map((r,i) => `
+        <div class="reply-card ${r.was_sent?'sent':''}" id="reply-${r.id}">
+          <div class="reply-head">
+            <div class="reply-style"><span class="reply-num">${i+1}</span>${escapeHtml(r.style)}</div>
+            <div class="reply-actions">
+              <div class="icon-btn" title="Regenerate" onclick="regenReply('${r.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg></div>
+              <div class="icon-btn" title="Copy" onclick="copyReply('${r.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></div>
+            </div>
+          </div>
+          <div class="reply-text" id="reply-text-${r.id}">${escapeHtml(r.body)}</div>
+          <button class="btn btn-primary btn-sm" onclick="sendReply('${r.id}')">Send this reply</button>
+        </div>`).join('');
+    }catch(e){
+      document.getElementById('analysis-box').innerHTML = `<div class="empty-note">AI request failed: ${escapeHtml(e.message)}<br><br>Check that ANTHROPIC_API_KEY is set in your backend's .env and uvicorn was restarted.</div>`;
+    }
+  }
+
+  async function regenReply(replyId){
+    const box = document.getElementById(`reply-text-${replyId}`);
+    box.innerHTML = '<span class="spinner"></span>';
+    try{
+      const r = await api(`/replies/${replyId}/regenerate`, {method:'POST'});
+      box.textContent = r.body;
+    }catch(e){ toast('Regenerate failed: ' + e.message, true); }
+  }
+  function copyReply(replyId){
+    const text = document.getElementById(`reply-text-${replyId}`).textContent;
+    navigator.clipboard.writeText(text).then(()=> toast('Copied to clipboard'));
+  }
+  async function sendReply(replyId){
+    try{
+      await api(`/emails/${currentEmailId}/send`, {method:'POST', body: JSON.stringify({reply_id: replyId})});
+      document.getElementById(`reply-${replyId}`).classList.add('sent');
+      toast('Reply marked as sent');
+    }catch(e){ toast('Send failed: ' + e.message, true); }
+  }
+
+  // ---------- Bulk ----------
+  function resetBulkUI(){
+    clearInterval(bulkPollTimer);
+    document.getElementById('bulk-fill').style.width = '0%';
+    document.getElementById('bulk-pct').textContent = '0%';
+    document.getElementById('bulk-count').textContent = '0 / 0';
+    document.getElementById('bulk-status-label').textContent = 'Idle';
+    document.getElementById('m-success').textContent = '0';
+    document.getElementById('m-failed').textContent = '0';
+    document.getElementById('m-remaining').textContent = '0';
+    document.getElementById('m-total').textContent = '0';
+    document.getElementById('fail-container').innerHTML = '';
+    document.getElementById('retry-btn').style.display = 'none';
+    document.getElementById('bulk-btn').disabled = false;
+    document.getElementById('bulk-btn').textContent = 'Process all pending emails';
+  }
+
+  async function startBulk(){
+    const btn = document.getElementById('bulk-btn');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Starting job…';
+    try{
+      const job = await api('/emails/bulk-process', {method:'POST', body: JSON.stringify({limit:1000})});
+      currentJobId = job.id;
+      document.getElementById('bulk-status-label').textContent = 'Running';
+      pollBulk();
+      bulkPollTimer = setInterval(pollBulk, 1500);
+    }catch(e){
+      toast('Could not start bulk job: ' + e.message, true);
+      btn.disabled = false; btn.textContent = 'Process all pending emails';
+    }
+  }
+
+  async function pollBulk(){
+    if(!currentJobId) return;
+    try{
+      const job = await api(`/emails/bulk-status/${currentJobId}`);
+      const pct = job.total ? Math.round(job.processed/job.total*100) : 0;
+      document.getElementById('bulk-fill').style.width = pct + '%';
+      document.getElementById('bulk-pct').textContent = pct + '%';
+      document.getElementById('bulk-count').textContent = `${job.processed} / ${job.total}`;
+      document.getElementById('m-success').textContent = job.succeeded;
+      document.getElementById('m-failed').textContent = job.failed;
+      document.getElementById('m-remaining').textContent = job.total - job.processed;
+      document.getElementById('m-total').textContent = job.total;
+      document.getElementById('bulk-status-label').textContent = job.status;
+      document.getElementById('fail-container').innerHTML = job.failed_email_ids.map(id => `
+        <div class="fail-row"><span>Email ${id} could not be processed</span></div>`).join('');
+
+      if(job.status === 'completed'){
+        clearInterval(bulkPollTimer);
+        document.getElementById('bulk-btn').disabled = false;
+        document.getElementById('bulk-btn').textContent = 'Completed ✓ — run again';
+        if(job.failed > 0) document.getElementById('retry-btn').style.display = 'inline-flex';
+        refreshAll();
+      }
+    }catch(e){
+      clearInterval(bulkPollTimer);
+      toast('Lost connection to job status: ' + e.message, true);
+    }
+  }
+
+  async function retryBulkFailed(){
+    try{
+      await api(`/emails/bulk-retry/${currentJobId}`, {method:'POST'});
+      document.getElementById('bulk-status-label').textContent = 'Running';
+      bulkPollTimer = setInterval(pollBulk, 1500);
+    }catch(e){ toast('Retry failed: ' + e.message, true); }
+  }
+
+  // ---------- Analytics ----------
+  async function loadAnalytics(){
+    try{
+      const a = await api('/analytics');
+      document.getElementById('an-success').textContent = a.success_rate + '%';
+      document.getElementById('an-time').textContent = a.avg_processing_time_seconds.toFixed(1) + 's';
+      const topIntent = Object.keys(a.top_intents)[0];
+      const topStyle = Object.keys(a.top_reply_styles)[0];
+      document.getElementById('an-intent').textContent = topIntent || '—';
+      document.getElementById('an-style').textContent = topStyle || '—';
+
+      const days = Object.entries(a.emails_processed_per_day).sort();
+      const max = Math.max(1, ...days.map(([,v])=>v));
+      document.getElementById('bars').innerHTML = days.length ? days.map(([d,v]) => `
+        <div class="bar" style="height:${(v/max*100)}%;"><div class="bar-label">${d.slice(5)}</div></div>`).join('')
+        : '<div class="empty-note">No data yet.</div>';
+    }catch(e){
+      toast('Could not load analytics: ' + e.message, true);
+    }
+  }
+</script>
+</body>
+</html>

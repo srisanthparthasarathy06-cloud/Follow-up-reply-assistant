@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Relay — AI Follow-Up Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0a0d12;
+    --surface: #11151d;
+    --surface-2: #171d27;
+    --surface-3: #1e2530;
+    --border: #232a36;
+    --border-soft: #1a202b;
+    --text: #e9ebee;
+    --text-dim: #9aa3b2;
+    --text-faint: #5b6470;
+    --accent: #5b5fef;
+    --accent-soft: rgba(91,95,239,0.14);
+    --accent-2: #22d3aa;
+    --accent-2-soft: rgba(34,211,170,0.14);
+    --warn: #f5a623;
+    --warn-soft: rgba(245,166,35,0.14);
+    --danger: #ef5a6f;
+    --danger-soft: rgba(239,90,111,0.14);
+    --radius: 14px;
+    --radius-sm: 9px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background: radial-gradient(1200px 800px at 85% -10%, rgba(91,95,239,0.08), transparent 60%), var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    min-height: 100vh;
+    display:flex;
+  }
+  ::selection{ background: var(--accent-soft); }
+  h1,h2,h3,.display{ font-family:'Space Grotesk', sans-serif; letter-spacing:-0.01em; }
+  .mono{ font-family:'JetBrains Mono', monospace; }
+  a{ color:inherit; text-decoration:none; }
+  button{ font-family:inherit; cursor:pointer; border:none; }
+
+  /* ---------- Sidebar ---------- */
+  .sidebar{
+    width: 232px;
+    min-width: 232px;
+    background: var(--surface);
+    border-right: 1px solid var(--border-soft);
+    display:flex; flex-direction:column;
+    padding: 22px 14px;
+    height:100vh;
+    position: sticky; top:0;
+  }
+  .brand{
+    display:flex; align-items:center; gap:10px;
+    padding: 4px 8px 26px 8px;
+  }
+  .brand-mark{
+    width:30px; height:30px; border-radius:9px;
+    background: linear-gradient(135deg, var(--accent), #8b8ef7);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Space Grotesk'; font-weight:700; font-size:15px; color:white;
+    flex-shrink:0;
+  }
+  .brand-name{ font-family:'Space Grotesk'; font-weight:600; font-size:16.5px; }
+  .brand-sub{ font-size:11px; color:var(--text-faint); margin-top:1px;}
+
+  .nav-group{ margin-bottom: 18px; }
+  .nav-label{ font-size:10.5px; color:var(--text-faint); padding: 0 10px; margin-bottom:6px; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; }
+  .nav-item{
+    display:flex; align-items:center; gap:11px;
+    padding: 9px 11px; border-radius: 9px;
+    color: var(--text-dim); font-size:13.5px; font-weight:500;
+    cursor:pointer; transition: background .15s, color .15s;
+    margin-bottom: 2px;
+    position:relative;
+  }
+  .nav-item svg{ width:17px; height:17px; flex-shrink:0; opacity:0.85;}
+  .nav-item:hover{ background: var(--surface-2); color: var(--text); }
+  .nav-item.active{ background: var(--accent-soft); color: #c7c9ff; }
+  .nav-item.active svg{ opacity:1; }
+  .nav-badge{
+    margin-left:auto; background:var(--surface-3); color:var(--text-dim);
+    font-size:10.5px; padding:1px 7px; border-radius:20px; font-family:'JetBrains Mono';
+  }
+  .sidebar-footer{
+    margin-top:auto; border-top:1px solid var(--border-soft); padding-top:14px;
+    display:flex; align-items:center; gap:10px; padding-left:8px;
+  }
+  .avatar{
+    width:32px; height:32px; border-radius:50%;
+    background: linear-gradient(135deg,#3c4257,#232838);
+    display:flex; align-items:center; justify-content:center;
+    font-size:12px; font-weight:600; color:var(--text-dim); border:1px solid var(--border);
+  }
+  .user-name{ font-size:13px; font-weight:600; }
+  .user-plan{ font-size:11px; color:var(--text-faint); }
+
+  /* ---------- Main ---------- */
+  .main{ flex:1; min-width:0; padding: 26px 34px 50px; }
+  .topline{ display:flex; align-items:center; justify-content:space-between; margin-bottom: 26px; }
+  .page-title{ font-size: 22px; font-weight:600; }
+  .page-sub{ color:var(--text-dim); font-size:13px; margin-top:3px; }
+  .top-actions{ display:flex; gap:10px; align-items:center; }
+  .search-box{
+    background: var(--surface); border:1px solid var(--border);
+    border-radius:9px; padding: 8px 12px; display:flex; align-items:center; gap:8px;
+    color:var(--text-faint); font-size:13px; width:230px;
+  }
+  .search-box svg{ width:14px; height:14px; opacity:0.7;}
+  .btn{
+    padding: 9px 15px; border-radius:9px; font-size:13px; font-weight:600;
+    display:inline-flex; align-items:center; gap:7px; transition:.15s;
+  }
+  .btn-primary{ background: var(--accent); color:white; }
+  .btn-primary:hover{ background:#6c6ffb; }
+  .btn-ghost{ background: var(--surface-2); color:var(--text); border:1px solid var(--border); }
+  .btn-ghost:hover{ background: var(--surface-3); }
+  .btn-sm{ padding:6px 11px; font-size:12px; border-radius:7px; }
+
+  /* Stat cards */
+  .stat-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:18px; }
+  .card{
+    background: var(--surface); border:1px solid var(--border-soft);
+    border-radius: var(--radius); padding: 18px;
+  }
+  .stat-top{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px;}
+  .stat-icon{ width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center; }
+  .stat-icon svg{ width:17px; height:17px; }
+  .stat-value{ font-family:'Space Grotesk'; font-size:26px; font-weight:600; }
+  .stat-label{ color:var(--text-dim); font-size:12.5px; margin-top:3px; }
+  .stat-delta{ font-size:11.5px; margin-top:8px; display:flex; align-items:center; gap:4px; }
+  .up{ color: var(--accent-2); } .flat{ color:var(--text-faint); }
+
+  /* Bulk hero */
+  .hero-card{
+    background: linear-gradient(120deg, #171a2c 0%, #12141d 60%, #11151d 100%);
+    border:1px solid var(--border); border-radius: var(--radius);
+    padding: 26px 28px; margin-bottom:18px; position:relative; overflow:hidden;
+    display:flex; justify-content:space-between; align-items:center; gap:20px;
+  }
+  .hero-card::after{
+    content:''; position:absolute; right:-60px; top:-80px; width:280px; height:280px;
+    background: radial-gradient(circle, rgba(91,95,239,0.22), transparent 70%);
+  }
+  .hero-left{ position:relative; z-index:1; max-width:560px;}
+  .hero-tag{ display:inline-flex; align-items:center; gap:6px; background:var(--accent-soft); color:#b7b9ff; font-size:11.5px; font-weight:600; padding:4px 10px; border-radius:20px; margin-bottom:12px;}
+  .hero-title{ font-size:21px; font-weight:600; margin-bottom:8px; }
+  .hero-desc{ color:var(--text-dim); font-size:13.5px; line-height:1.55; }
+  .hero-right{ position:relative; z-index:1; text-align:right; flex-shrink:0; }
+  .hero-stat{ font-family:'Space Grotesk'; font-size:30px; font-weight:700; }
+  .hero-stat-label{ font-size:11.5px; color:var(--text-faint); margin-bottom:14px; }
+
+  .split-row{ display:grid; grid-template-columns: 1.6fr 1fr; gap:16px; }
+  .panel-title{ font-size:14.5px; font-weight:600; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; }
+  .panel-title span.link{ font-size:12px; color:var(--text-dim); font-weight:500; }
+
+  .mail-row{
+    display:flex; align-items:center; gap:12px; padding:11px 6px;
+    border-bottom:1px solid var(--border-soft); cursor:pointer; border-radius:8px;
+  }
+  .mail-row:hover{ background: var(--surface-2); }
+  .mail-row:last-child{ border-bottom:none; }
+  .mail-avatar{ width:32px; height:32px; border-radius:50%; background:var(--surface-3); display:flex; align-items:center; justify-content:center; font-size:11.5px; font-weight:600; color:var(--text-dim); flex-shrink:0; }
+  .mail-main{ flex:1; min-width:0; }
+  .mail-sender{ font-weight:600; font-size:13px; }
+  .mail-subject{ color:var(--text-dim); font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tag{ font-size:10.5px; font-weight:600; padding:3px 8px; border-radius:20px; white-space:nowrap; }
+  .tag-followup{ background:var(--accent-soft); color:#b7b9ff; }
+  .tag-schedule{ background:var(--warn-soft); color:var(--warn); }
+  .tag-payment{ background:var(--danger-soft); color:var(--danger); }
+  .tag-general{ background:var(--surface-3); color:var(--text-dim); }
+  .tag-done{ background:var(--accent-2-soft); color:var(--accent-2); }
+  .tag-pending{ background:var(--surface-3); color:var(--text-dim); }
+
+  .activity-row{ display:flex; gap:10px; padding:10px 4px; }
+  .activity-dot{ width:7px; height:7px; border-radius:50%; background:var(--accent-2); margin-top:5px; flex-shrink:0; }
+  .activity-text{ font-size:12.5px; color:var(--text); line-height:1.4; }
+  .activity-time{ font-size:11px; color:var(--text-faint); margin-top:1px; }
+
+  /* Inbox table */
+  .toolbar{ display:flex; gap:10px; margin-bottom:16px; align-items:center; flex-wrap:wrap;}
+  .chip{ background:var(--surface); border:1px solid var(--border); color:var(--text-dim); font-size:12.5px; padding:7px 12px; border-radius:8px; display:flex; align-items:center; gap:6px; }
+  table{ width:100%; border-collapse:collapse; }
+  thead th{ text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-faint); font-weight:600; padding:0 10px 10px; border-bottom:1px solid var(--border-soft); }
+  tbody td{ padding:13px 10px; border-bottom:1px solid var(--border-soft); font-size:13px; }
+  tbody tr{ cursor:pointer; transition:background .12s; }
+  tbody tr:hover{ background: var(--surface-2); }
+  .priority-dot{ width:7px; height:7px; border-radius:50%; display:inline-block; margin-right:6px;}
+  .p-high{ background: var(--danger);} .p-med{ background: var(--warn);} .p-low{ background: var(--accent-2);}
+
+  /* Email detail */
+  .detail-grid{ display:grid; grid-template-columns: 1fr 1.35fr; gap:18px; align-items:start; }
+  .thread-card{ padding:22px; }
+  .thread-from{ font-size:15px; font-weight:600; margin-bottom:2px; }
+  .thread-meta{ font-size:12px; color:var(--text-faint); margin-bottom:16px; }
+  .thread-subject{ font-family:'Space Grotesk'; font-size:16px; font-weight:600; margin-bottom:14px; }
+  .thread-body{ color:var(--text-dim); font-size:13.5px; line-height:1.7; white-space:pre-line; }
+
+  .analysis-card{ padding:18px 20px; margin-bottom:16px; }
+  .analysis-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px 20px; margin-bottom:14px; }
+  .a-label{ font-size:11px; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px;}
+  .a-value{ font-size:13px; font-weight:600; }
+  .summary-box{ background:var(--surface-2); border-radius:9px; padding:12px 14px; font-size:12.5px; color:var(--text-dim); line-height:1.55; border:1px solid var(--border-soft); }
+
+  .replies-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;}
+  .reply-card{
+    background:var(--surface); border:1px solid var(--border-soft); border-radius:12px;
+    padding:15px 16px; margin-bottom:11px; transition: border-color .15s;
+  }
+  .reply-card:hover{ border-color: #333c4c; }
+  .reply-card.selected{ border-color: var(--accent); background: rgba(91,95,239,0.06); }
+  .reply-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .reply-style{ font-size:12px; font-weight:600; color:#c7c9ff; display:flex; align-items:center; gap:7px; }
+  .reply-num{ width:19px; height:19px; border-radius:6px; background:var(--surface-3); display:flex; align-items:center; justify-content:center; font-size:10.5px; font-family:'JetBrains Mono'; color:var(--text-dim); }
+  .reply-text{ font-size:13px; color:var(--text-dim); line-height:1.6; margin-bottom:10px; }
+  .reply-actions{ display:flex; gap:6px; }
+  .icon-btn{ background:var(--surface-2); border:1px solid var(--border); color:var(--text-dim); width:28px; height:28px; border-radius:7px; display:flex; align-items:center; justify-content:center; }
+  .icon-btn:hover{ background:var(--surface-3); color:var(--text); }
+  .icon-btn svg{ width:13px; height:13px; }
+
+  .assist-bar{ display:flex; gap:8px; margin-top:16px; flex-wrap:wrap; }
+  .assist-chip{ background:var(--surface-2); border:1px solid var(--border); color:var(--text-dim); font-size:12px; padding:7px 11px; border-radius:20px; }
+  .assist-chip:hover{ background:var(--surface-3); color:var(--text); }
+
+  /* Bulk processing */
+  .progress-track{ background:var(--surface-2); height:10px; border-radius:20px; overflow:hidden; margin: 14px 0 8px;}
+  .progress-fill{ height:100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); width:0%; transition: width .3s ease; border-radius:20px; }
+  .progress-nums{ display:flex; justify-content:space-between; font-size:12.5px; color:var(--text-dim); }
+  .mini-stats{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:18px;}
+  .mini-stat{ background:var(--surface-2); border-radius:9px; padding:12px 14px; }
+  .mini-stat .v{ font-family:'Space Grotesk'; font-size:19px; font-weight:600; }
+  .mini-stat .l{ font-size:11.5px; color:var(--text-faint); margin-top:2px;}
+
+  .fail-row{ display:flex; justify-content:space-between; align-items:center; padding:9px 12px; background:var(--danger-soft); border-radius:8px; margin-bottom:7px; font-size:12.5px; }
+
+  /* Analytics */
+  .chart-card{ padding:20px; }
+  .bars{ display:flex; align-items:flex-end; gap:8px; height:150px; margin-top:16px; }
+  .bar{ flex:1; background: linear-gradient(180deg, var(--accent), rgba(91,95,239,0.25)); border-radius:5px 5px 0 0; position:relative; }
+  .bar-label{ position:absolute; bottom:-20px; left:0; right:0; text-align:center; font-size:10.5px; color:var(--text-faint); }
+
+  .view{ display:none; animation: fadein .25s ease; }
+  .view.active{ display:block; }
+  @keyframes fadein{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;} }
+
+  ::-webkit-scrollbar{ width:8px; height:8px; }
+  ::-webkit-scrollbar-thumb{ background:var(--surface-3); border-radius:20px; }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="brand">
+    <div class="brand-mark">R</div>
+    <div>
+      <div class="brand-name">Relay</div>
+      <div class="brand-sub">AI email assistant</div>
+    </div>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-item active" data-view="dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+      Dashboard
+    </div>
+    <div class="nav-item" data-view="inbox">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v16H4z"/><path d="M4 8l8 6 8-6"/></svg>
+      Inbox
+      <span class="nav-badge">258</span>
+    </div>
+    <div class="nav-item" data-view="detail">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2a5 5 0 015 5c0 2.5-2 4-2 6h-6c0-2-2-3.5-2-6a5 5 0 015-5z"/><path d="M9 21h6M10 18h4"/></svg>
+      AI Replies
+    </div>
+    <div class="nav-item" data-view="bulk">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 17V7a2 2 0 012-2h9l5 5v7a2 2 0 01-2 2H6a2 2 0 01-2-2z"/><path d="M9 13h6"/></svg>
+      Bulk Processing
+    </div>
+    <div class="nav-item" data-view="sent">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg>
+      Sent
+    </div>
+    <div class="nav-item" data-view="analytics">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>
+      Analytics
+    </div>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-label">Configuration</div>
+    <div class="nav-item" data-view="accounts">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 8h20"/></svg>
+      Email Accounts
+    </div>
+    <div class="nav-item" data-view="settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09c0 .68.39 1.29 1 1.51.63.24 1.35.11 1.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06c-.44.47-.57 1.19-.33 1.82.22.61.83 1 1.51 1H21a2 2 0 010 4h-.09c-.68 0-1.29.39-1.51 1z"/></svg>
+      Settings
+    </div>
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="avatar">NR</div>
+    <div>
+      <div class="user-name">Nina Rao</div>
+      <div class="user-plan">Pro workspace</div>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- DASHBOARD -->
+  <div class="view active" id="view-dashboard">
+    <div class="topline">
+      <div>
+        <div class="page-title">Good morning, Nina 👋</div>
+        <div class="page-sub">Your AI email assistant processed 742 emails while you were away.</div>
+      </div>
+      <div class="top-actions">
+        <div class="search-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>Search emails…</div>
+        <button class="btn btn-primary" onclick="goTo('bulk')">Start Processing</button>
+      </div>
+    </div>
+
+    <div class="stat-grid">
+      <div class="card">
+        <div class="stat-top">
+          <div class="stat-icon" style="background:var(--accent-soft)"><svg viewBox="0 0 24 24" fill="none" stroke="#8f92f5" stroke-width="1.8"><path d="M4 4h16v16H4z"/><path d="M4 8l8 6 8-6"/></svg></div>
+        </div>
+        <div class="stat-value">1,000</div>
+        <div class="stat-label">Total emails in batch</div>
+        <div class="stat-delta up">↑ 12% vs last batch</div>
+      </div>
+      <div class="card">
+        <div class="stat-top">
+          <div class="stat-icon" style="background:var(--accent-2-soft)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--accent-2)" stroke-width="1.8"><path d="M20 6L9 17l-5-5"/></svg></div>
+        </div>
+        <div class="stat-value">742</div>
+        <div class="stat-label">Processed</div>
+        <div class="stat-delta up">74% complete</div>
+      </div>
+      <div class="card">
+        <div class="stat-top">
+          <div class="stat-icon" style="background:var(--warn-soft)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="1.8"><path d="M12 2a5 5 0 015 5c0 2.5-2 4-2 6h-6c0-2-2-3.5-2-6a5 5 0 015-5z"/><path d="M9 21h6"/></svg></div>
+        </div>
+        <div class="stat-value">7,420</div>
+        <div class="stat-label">Replies generated</div>
+        <div class="stat-delta flat">10 per email</div>
+      </div>
+      <div class="card">
+        <div class="stat-top">
+          <div class="stat-icon" style="background:var(--danger-soft)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg></div>
+        </div>
+        <div class="stat-value">258</div>
+        <div class="stat-label">Pending review</div>
+        <div class="stat-delta flat">6 failed — retry available</div>
+      </div>
+    </div>
+
+    <div class="hero-card">
+      <div class="hero-left">
+        <div class="hero-tag">⚡ Bulk AI processing</div>
+        <div class="hero-title">Process 1,000 emails with AI</div>
+        <div class="hero-desc">Relay reads intent, tone and urgency for every message, then drafts 10 distinct reply options per email — so a full inbox becomes a five‑minute review instead of a five‑hour slog.</div>
+      </div>
+      <div class="hero-right">
+        <div class="hero-stat">10</div>
+        <div class="hero-stat-label">replies / email</div>
+        <button class="btn btn-primary" onclick="goTo('bulk')">Start Processing →</button>
+      </div>
+    </div>
+
+    <div class="split-row">
+      <div class="card">
+        <div class="panel-title">Recent emails <span class="link" onclick="goTo('inbox')">View inbox →</span></div>
+        <div id="recent-list"></div>
+      </div>
+      <div class="card">
+        <div class="panel-title">AI activity</div>
+        <div id="activity-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INBOX -->
+  <div class="view" id="view-inbox">
+    <div class="topline">
+      <div>
+        <div class="page-title">Inbox</div>
+        <div class="page-sub">1,000 emails · 742 processed · 258 pending</div>
+      </div>
+      <div class="top-actions">
+        <button class="btn btn-ghost" onclick="goTo('bulk')">Process selected</button>
+        <button class="btn btn-primary" onclick="goTo('bulk')">Process all 1,000</button>
+      </div>
+    </div>
+    <div class="toolbar">
+      <div class="search-box" style="width:260px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>Search by sender or subject…</div>
+      <div class="chip">Priority: All ▾</div>
+      <div class="chip">Intent: All ▾</div>
+      <div class="chip">Status: All ▾</div>
+    </div>
+    <div class="card" style="padding:8px 14px 4px;">
+      <table>
+        <thead><tr><th><input type="checkbox"></th><th>Sender</th><th>Subject</th><th>Intent</th><th>Priority</th><th>Status</th><th>Replies</th></tr></thead>
+        <tbody id="inbox-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- DETAIL -->
+  <div class="view" id="view-detail">
+    <div class="topline">
+      <div>
+        <div class="page-title">Email detail</div>
+        <div class="page-sub">Review the AI's understanding and pick a reply.</div>
+      </div>
+      <div class="top-actions"><button class="btn btn-ghost" onclick="goTo('inbox')">← Back to inbox</button></div>
+    </div>
+    <div class="detail-grid">
+      <div class="card thread-card">
+        <div class="thread-from">John Smith</div>
+        <div class="thread-meta">john.smith@outerlinecorp.com · Today, 9:14 AM</div>
+        <div class="thread-subject">Application Status</div>
+        <div class="thread-body">Hi,
+
+I wanted to check whether my application has been reviewed. I submitted it last week but haven't received an update yet. Could you let me know the current status?
+
+Thanks,
+John</div>
+      </div>
+
+      <div>
+        <div class="card analysis-card">
+          <div class="panel-title" style="margin-bottom:12px;">AI analysis</div>
+          <div class="analysis-grid">
+            <div><div class="a-label">Intent</div><div class="a-value">Application status request</div></div>
+            <div><div class="a-label">Priority</div><div class="a-value"><span class="priority-dot p-med"></span>Medium</div></div>
+            <div><div class="a-label">Tone</div><div class="a-value">Professional</div></div>
+            <div><div class="a-label">Required action</div><div class="a-value">Provide application status</div></div>
+          </div>
+          <div class="summary-box"><strong style="color:var(--text)">Summary —</strong> John is following up on an application submitted last week and has had no response yet. Relay has no confirmed status in its records, so every draft below acknowledges the request without inventing an outcome.</div>
+        </div>
+
+        <div class="replies-header">
+          <div class="panel-title" style="margin-bottom:0;">10 suggested replies</div>
+          <button class="btn btn-ghost btn-sm" onclick="regenAll()">↻ Regenerate all</button>
+        </div>
+        <div id="replies-list"></div>
+
+        <div class="assist-bar">
+          <div class="assist-chip">Make it shorter</div>
+          <div class="assist-chip">More professional</div>
+          <div class="assist-chip">Friendlier tone</div>
+          <div class="assist-chip">Suitable for my manager</div>
+          <div class="assist-chip">Politely decline</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BULK -->
+  <div class="view" id="view-bulk">
+    <div class="topline">
+      <div>
+        <div class="page-title">Bulk processing</div>
+        <div class="page-sub">Process up to 1,000 emails asynchronously without blocking the app.</div>
+      </div>
+    </div>
+    <div class="card" style="padding:24px;">
+      <div class="panel-title" style="margin-bottom:2px;">Processing emails <span class="link mono" id="bulk-pct">0%</span></div>
+      <div class="progress-track"><div class="progress-fill" id="bulk-fill"></div></div>
+      <div class="progress-nums"><span id="bulk-count">0 / 1000</span><span id="bulk-speed">0 emails/sec</span></div>
+      <div class="mini-stats">
+        <div class="mini-stat"><div class="v" id="m-success">0</div><div class="l">Successful</div></div>
+        <div class="mini-stat"><div class="v" id="m-failed">0</div><div class="l">Failed</div></div>
+        <div class="mini-stat"><div class="v" id="m-remaining">1000</div><div class="l">Remaining</div></div>
+        <div class="mini-stat"><div class="v" id="m-replies">0</div><div class="l">Replies generated</div></div>
+      </div>
+      <div style="margin-top:20px; display:flex; gap:10px;">
+        <button class="btn btn-primary" onclick="runBulk()" id="bulk-btn">Start processing</button>
+        <button class="btn btn-ghost" onclick="resetBulk()">Reset</button>
+      </div>
+      <div id="fail-container" style="margin-top:18px;"></div>
+    </div>
+  </div>
+
+  <!-- SENT -->
+  <div class="view" id="view-sent">
+    <div class="topline"><div><div class="page-title">Sent</div><div class="page-sub">Replies sent by you or auto-approved by Relay.</div></div></div>
+    <div class="card" style="padding:8px 14px;">
+      <table>
+        <thead><tr><th>To</th><th>Subject</th><th>Style used</th><th>Sent</th></tr></thead>
+        <tbody>
+          <tr><td>john.smith@outerlinecorp.com</td><td>Re: Application Status</td><td><span class="tag tag-followup">Reassuring</span></td><td>2 min ago</td></tr>
+          <tr><td>sarah.lee@finch.io</td><td>Re: Meeting Reschedule</td><td><span class="tag tag-followup">Professional</span></td><td>18 min ago</td></tr>
+          <tr><td>alex.omondi@brightpay.com</td><td>Re: Payment Question</td><td><span class="tag tag-followup">Direct</span></td><td>1 hr ago</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ANALYTICS -->
+  <div class="view" id="view-analytics">
+    <div class="topline"><div><div class="page-title">Analytics</div><div class="page-sub">How Relay is performing across your inbox.</div></div></div>
+    <div class="stat-grid">
+      <div class="card"><div class="stat-value">96.4%</div><div class="stat-label">Processing success rate</div></div>
+      <div class="card"><div class="stat-value">3.1s</div><div class="stat-label">Avg. processing time / email</div></div>
+      <div class="card"><div class="stat-value">Follow-up</div><div class="stat-label">Most common intent</div></div>
+      <div class="card"><div class="stat-value">Professional</div><div class="stat-label">Most used reply style</div></div>
+    </div>
+    <div class="card chart-card">
+      <div class="panel-title">Emails processed per day</div>
+      <div class="bars" id="bars"></div>
+    </div>
+  </div>
+
+  <!-- ACCOUNTS -->
+  <div class="view" id="view-accounts">
+    <div class="topline"><div><div class="page-title">Email accounts</div><div class="page-sub">Connect providers using OAuth — Relay never stores your password.</div></div></div>
+    <div class="split-row">
+      <div class="card" style="padding:20px;">
+        <div class="panel-title">Connected</div>
+        <div class="mail-row"><div class="mail-avatar">G</div><div class="mail-main"><div class="mail-sender">nina@relaywork.com</div><div class="mail-subject">Gmail · connected via OAuth 2.0</div></div><button class="btn btn-ghost btn-sm">Disconnect</button></div>
+      </div>
+      <div class="card" style="padding:20px;">
+        <div class="panel-title">Add account</div>
+        <button class="btn btn-ghost" style="width:100%; justify-content:center; margin-bottom:8px;">+ Connect Gmail</button>
+        <button class="btn btn-ghost" style="width:100%; justify-content:center; margin-bottom:8px;">+ Connect Outlook</button>
+        <button class="btn btn-ghost" style="width:100%; justify-content:center;">+ Connect IMAP / SMTP</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="view" id="view-settings">
+    <div class="topline"><div><div class="page-title">Settings</div><div class="page-sub">Model behavior and safety preferences.</div></div></div>
+    <div class="card" style="padding:20px; max-width:520px;">
+      <div style="margin-bottom:16px;"><div class="a-label">Reply styles generated per email</div><div class="a-value" style="margin-top:4px;">10</div></div>
+      <div style="margin-bottom:16px;"><div class="a-label">Never fabricate</div><div class="a-value" style="margin-top:4px;">Dates, prices, approval status, names, promises</div></div>
+      <div><div class="a-label">Default send behavior</div><div class="a-value" style="margin-top:4px;">Draft only — requires manual approval</div></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const emails = [
+    {sender:"John Smith", initials:"JS", subject:"Application Status", intent:"Follow-up", tag:"followup", priority:"med", status:"done", replies:10},
+    {sender:"Sarah Lee", initials:"SL", subject:"Meeting Reschedule Request", intent:"Scheduling", tag:"schedule", priority:"med", status:"done", replies:10},
+    {sender:"Alex Omondi", initials:"AO", subject:"Payment Question — Invoice #2291", intent:"Payment", tag:"payment", priority:"high", status:"pending", replies:0},
+    {sender:"Priya Menon", initials:"PM", subject:"Following up on our call", intent:"Follow-up", tag:"followup", priority:"low", status:"done", replies:10},
+    {sender:"Daniel Kim", initials:"DK", subject:"Contract renewal terms", intent:"General inquiry", tag:"general", priority:"high", status:"pending", replies:0},
+    {sender:"Maria Fontes", initials:"MF", subject:"Can we push the demo to Friday?", intent:"Scheduling", tag:"schedule", priority:"med", status:"done", replies:10},
+    {sender:"Tomasz Wojcik", initials:"TW", subject:"Refund status update", intent:"Payment", tag:"payment", priority:"high", status:"pending", replies:0},
+    {sender:"Amara Chen", initials:"AC", subject:"Thanks for the quick turnaround", intent:"General inquiry", tag:"general", priority:"low", status:"done", replies:10},
+  ];
+
+  const activity = [
+    {text:"10 replies generated for John Smith", time:"1 min ago"},
+    {text:"Email analyzed — Meeting Reschedule Request", time:"3 min ago"},
+    {text:"Reply sent to alex.omondi@brightpay.com", time:"12 min ago"},
+    {text:"Batch job #4471 completed — 50 emails", time:"20 min ago"},
+    {text:"Email flagged: missing approval status, drafted safely", time:"25 min ago"},
+  ];
+
+  const replyStyles = [
+    {style:"Professional", text:"Hi John, thanks for checking in. Your application is currently under review, and we'll share an update as soon as the process is complete."},
+    {style:"Formal", text:"Dear Mr. Smith, thank you for your inquiry. Please be advised that your application remains under active review, and we will notify you promptly upon its completion."},
+    {style:"Friendly", text:"Hey John! Thanks for the nudge — your application's still being looked at, but I'll make sure you hear from us the moment there's news."},
+    {style:"Short & Direct", text:"Hi John — still in review. We'll update you shortly."},
+    {style:"Detailed", text:"Hi John, thank you for following up. Your application was received and entered our review queue last week. It's currently being assessed by the relevant team, and we typically provide updates within 5–7 business days. We'll reach out as soon as a decision is made."},
+    {style:"Polite", text:"Hello John, I appreciate your patience. Your application is still being reviewed, and we'll be sure to let you know as soon as we have an update for you."},
+    {style:"Reassuring", text:"Hi John, no need to worry — your application hasn't been overlooked. It's actively being reviewed, and you'll hear from us very soon."},
+    {style:"Casual", text:"Hey! Good timing — was just looking into applications. Yours is still in the pipeline, update coming your way soon."},
+    {style:"Highly Professional", text:"Dear Mr. Smith, thank you for your continued patience. Your application is presently undergoing review by our team, and we will communicate the outcome at the earliest opportunity."},
+    {style:"Custom AI Suggested", text:"Hi John, thanks for reaching out — I know waiting is never fun. Your application is still moving through review, and I've flagged it so you get an answer without further delay."},
+  ];
+
+  function initials(name){ return name; }
+
+  function renderRecent(){
+    const list = document.getElementById('recent-list');
+    list.innerHTML = emails.slice(0,5).map(e => `
+      <div class="mail-row" onclick="goTo('detail')">
+        <div class="mail-avatar">${e.initials}</div>
+        <div class="mail-main">
+          <div class="mail-sender">${e.sender}</div>
+          <div class="mail-subject">${e.subject}</div>
+        </div>
+        <span class="tag tag-${e.tag}">${e.intent}</span>
+        <span class="tag tag-${e.status === 'done' ? 'done' : 'pending'}">${e.status === 'done' ? 'Completed' : 'Pending'}</span>
+      </div>`).join('');
+  }
+
+  function renderActivity(){
+    document.getElementById('activity-list').innerHTML = activity.map(a => `
+      <div class="activity-row">
+        <div class="activity-dot"></div>
+        <div>
+          <div class="activity-text">${a.text}</div>
+          <div class="activity-time">${a.time}</div>
+        </div>
+      </div>`).join('');
+  }
+
+  function renderInbox(){
+    document.getElementById('inbox-body').innerHTML = emails.map(e => `
+      <tr onclick="goTo('detail')">
+        <td onclick="event.stopPropagation()"><input type="checkbox"></td>
+        <td style="font-weight:600;">${e.sender}</td>
+        <td style="color:var(--text-dim);">${e.subject}</td>
+        <td><span class="tag tag-${e.tag}">${e.intent}</span></td>
+        <td><span class="priority-dot p-${e.priority}"></span>${e.priority === 'high' ? 'High' : e.priority === 'med' ? 'Medium' : 'Low'}</td>
+        <td><span class="tag tag-${e.status === 'done' ? 'done' : 'pending'}">${e.status === 'done' ? 'Completed' : 'Pending'}</span></td>
+        <td class="mono" style="color:var(--text-faint)">${e.replies || '—'}</td>
+      </tr>`).join('');
+  }
+
+  function renderReplies(){
+    document.getElementById('replies-list').innerHTML = replyStyles.map((r,i) => `
+      <div class="reply-card ${i===0?'selected':''}" onclick="selectReply(this)">
+        <div class="reply-head">
+          <div class="reply-style"><span class="reply-num">${i+1}</span>${r.style}</div>
+          <div class="reply-actions">
+            <div class="icon-btn" title="Regenerate" onclick="event.stopPropagation()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg></div>
+            <div class="icon-btn" title="Copy" onclick="event.stopPropagation()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></div>
+            <div class="icon-btn" title="Edit" onclick="event.stopPropagation()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/></svg></div>
+          </div>
+        </div>
+        <div class="reply-text">${r.text}</div>
+        <button class="btn btn-primary btn-sm">Send this reply</button>
+      </div>`).join('');
+  }
+
+  function selectReply(el){
+    document.querySelectorAll('.reply-card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+  }
+  function regenAll(){ renderReplies(); }
+
+  function renderBars(){
+    const days = [420,610,530,780,690,742,910];
+    const labels = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    const max = Math.max(...days);
+    document.getElementById('bars').innerHTML = days.map((d,i)=>`
+      <div class="bar" style="height:${(d/max*100)}%;"><div class="bar-label">${labels[i]}</div></div>`).join('');
+  }
+
+  // Navigation
+  function goTo(view){
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-'+view).classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    const navEl = document.querySelector(`.nav-item[data-view="${view}"]`);
+    if(navEl) navEl.classList.add('active');
+  }
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', () => goTo(item.dataset.view));
+  });
+
+  // Bulk simulation
+  let bulkTimer = null;
+  function resetBulk(){
+    clearInterval(bulkTimer);
+    document.getElementById('bulk-fill').style.width = '0%';
+    document.getElementById('bulk-pct').textContent = '0%';
+    document.getElementById('bulk-count').textContent = '0 / 1000';
+    document.getElementById('bulk-speed').textContent = '0 emails/sec';
+    document.getElementById('m-success').textContent = '0';
+    document.getElementById('m-failed').textContent = '0';
+    document.getElementById('m-remaining').textContent = '1000';
+    document.getElementById('m-replies').textContent = '0';
+    document.getElementById('fail-container').innerHTML = '';
+    document.getElementById('bulk-btn').disabled = false;
+    document.getElementById('bulk-btn').textContent = 'Start processing';
+  }
+  function runBulk(){
+    resetBulk();
+    document.getElementById('bulk-btn').disabled = true;
+    document.getElementById('bulk-btn').textContent = 'Processing…';
+    let done = 0, failed = 0;
+    const total = 1000;
+    const failPoints = [128, 402, 617, 803, 918];
+    bulkTimer = setInterval(() => {
+      done += Math.floor(Math.random()*20)+8;
+      if(done > total) done = total;
+      failed = failPoints.filter(p => p <= done).length;
+      const success = done - failed;
+      const pct = Math.round(done/total*100);
+      document.getElementById('bulk-fill').style.width = pct+'%';
+      document.getElementById('bulk-pct').textContent = pct+'%';
+      document.getElementById('bulk-count').textContent = `${done} / ${total}`;
+      document.getElementById('bulk-speed').textContent = (Math.random()*4+6).toFixed(1)+' emails/sec';
+      document.getElementById('m-success').textContent = success;
+      document.getElementById('m-failed').textContent = failed;
+      document.getElementById('m-remaining').textContent = total - done;
+      document.getElementById('m-replies').textContent = success*10;
+      document.getElementById('fail-container').innerHTML = failPoints.filter(p=>p<=done).map(p=>`
+        <div class="fail-row"><span>Email #${p} could not be processed — sender address bounced</span><button class="btn btn-ghost btn-sm">Retry</button></div>`).join('');
+      if(done >= total){
+        clearInterval(bulkTimer);
+        document.getElementById('bulk-btn').textContent = 'Completed ✓';
+      }
+    }, 220);
+  }
+
+  renderRecent(); renderActivity(); renderInbox(); renderReplies(); renderBars();
+</script>
+</body>
+</html>
